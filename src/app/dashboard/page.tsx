@@ -146,8 +146,7 @@ export default function DashboardPage() {
 
     const q = query(
       collection(db, "bookings"),
-      where("calendarOwnerId", "==", user.uid),
-      orderBy("date", "asc")
+      where("calendarOwnerId", "==", user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -155,6 +154,14 @@ export default function DashboardPage() {
       snapshot.forEach((doc) => {
         bookingsData.push({ id: doc.id, ...doc.data() } as Booking);
       });
+      
+      // Sortowanie w pamięci po dacie i godzinie rozpoczęcia
+      bookingsData.sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.startTime.localeCompare(b.startTime);
+      });
+      
       setBookings(bookingsData);
     }, (error) => {
       console.error("Błąd pobierania rezerwacji:", error);
