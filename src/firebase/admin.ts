@@ -2,22 +2,34 @@ import { initializeApp, getApps, cert, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
-const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+function cleanEnvValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  let val = value.trim();
+  
+  // Iteracyjnie usuwamy cudzysłowy (pojedyncze i podwójne) oraz przecinki z początku i końca stringa
+  while (
+    val.startsWith('"') || val.startsWith("'") || 
+    val.endsWith('"') || val.endsWith("'") || val.endsWith(',')
+  ) {
+    if (val.startsWith('"') || val.startsWith("'")) {
+      val = val.substring(1);
+    }
+    if (val.endsWith('"') || val.endsWith("'") || val.endsWith(',')) {
+      val = val.substring(0, val.length - 1);
+    }
+    val = val.trim();
+  }
+  return val;
+}
+
+const projectId = cleanEnvValue(process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+const clientEmail = cleanEnvValue(process.env.FIREBASE_CLIENT_EMAIL);
 const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
 function formatPrivateKey(key: string | undefined): string | undefined {
   if (!key) return undefined;
   
-  let formatted = key.trim();
-  
-  // Usuń cudzysłowy (częsty błąd przy kopiowaniu z JSON)
-  if (formatted.startsWith('"') && formatted.endsWith('"')) {
-    formatted = formatted.substring(1, formatted.length - 1);
-  }
-  if (formatted.startsWith("'") && formatted.endsWith("'")) {
-    formatted = formatted.substring(1, formatted.length - 1);
-  }
+  let formatted = cleanEnvValue(key) || "";
   
   // Zamień tekstowe \n na prawdziwe znaki nowej linii
   formatted = formatted.replace(/\\n/g, "\n");
