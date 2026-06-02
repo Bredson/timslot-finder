@@ -94,7 +94,24 @@ if (getApps().length === 0) {
         const end = privateKey.substring(Math.max(0, privateKey.length - 30));
         console.error(`Raw Private Key snippet: "${start}...${end}"`);
       }
-      throw err;
+      
+      // Zapobiegamy wywaleniu kompilacji w środowisku lokalnym lub Vercelu, jeśli klucz to atrapa
+      const isDummyKey = 
+        projectId === "twoj-projekt" || 
+        (privateKey && (
+          privateKey.includes("dummy") || 
+          privateKey.includes("twoj-projekt") || 
+          privateKey.includes("MIIEvgIBADANBgkqhkiG9w0BAQ")
+        ));
+        
+      if (process.env.NODE_ENV === "production" && !isDummyKey) {
+        throw err;
+      } else {
+        console.warn("Wycofano do makiety Admin SDK z powodu błędu klucza prywatnego w trybie deweloperskim/kompilacji.");
+        app = initializeApp({
+          projectId: projectId || "timeslot-finder-mock",
+        }, "fallback-app");
+      }
     }
   } else {
     // Fallback dla lokalnego developmentu (np. jeśli używamy Firebase Emulator lub lokalnej konfiguracji gcloud)

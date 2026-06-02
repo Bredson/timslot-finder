@@ -88,6 +88,44 @@ export default function DashboardPage() {
   const [newBlockStart, setNewBlockStart] = useState("09:00");
   const [newBlockEnd, setNewBlockEnd] = useState("17:00");
   const [overrideSaving, setOverrideSaving] = useState(false);
+  const [tempBlocks, setTempBlocks] = useState<Array<{ start: string; end: string }>>([]);
+
+  // Synchronizacja stanu formularza po kliknięciu na konkretny dzień
+  useEffect(() => {
+    if (selectedDateStr) {
+      const override = overrides.find((o) => o.date === selectedDateStr);
+      if (override) {
+        setCurrentOverrideType(override.type);
+        setTempBlocks(override.blocks ? [...override.blocks] : []);
+      } else {
+        setCurrentOverrideType("unavailable_day");
+        setTempBlocks([]);
+      }
+    }
+  }, [selectedDateStr, overrides]);
+
+  const handleAddTempBlock = () => {
+    if (newBlockStart >= newBlockEnd) {
+      alert("Godzina zakończenia musi być późniejsza niż godzina rozpoczęcia.");
+      return;
+    }
+    
+    // Zapobieganie dublowaniu identycznych bloków
+    const duplicate = tempBlocks.some(b => b.start === newBlockStart && b.end === newBlockEnd);
+    if (duplicate) {
+      alert("Ten przedział godzin został już dodany.");
+      return;
+    }
+
+    const updated = [...tempBlocks, { start: newBlockStart, end: newBlockEnd }].sort(
+      (a, b) => a.start.localeCompare(b.start)
+    );
+    setTempBlocks(updated);
+  };
+
+  const handleRemoveTempBlock = (index: number) => {
+    setTempBlocks(tempBlocks.filter((_, idx) => idx !== index));
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -261,10 +299,15 @@ export default function DashboardPage() {
           type: "unavailable_day"
         });
       } else {
+        if (tempBlocks.length === 0) {
+          alert("Dodaj co najmniej jeden blok godzin przed zapisaniem.");
+          setOverrideSaving(false);
+          return;
+        }
         await setDoc(overrideDocRef, {
           date: selectedDateStr,
           type: "add_block",
-          blocks: [{ start: newBlockStart, end: newBlockEnd }]
+          blocks: tempBlocks
         });
       }
       setSelectedDateStr("");
@@ -315,8 +358,12 @@ export default function DashboardPage() {
           badgeText = "Zamknięte";
         } else {
           badgeStyle = { background: "var(--success-light)", color: "var(--success)", border: "1px solid var(--success)" };
-          const block = override.blocks?.[0];
-          badgeText = block ? `${block.start}-${block.end}` : "Wolne";
+          const count = override.blocks?.length || 0;
+          if (count === 1) {
+            badgeText = `${override.blocks![0].start}-${override.blocks![0].end}`;
+          } else {
+            badgeText = `${count} bloki`;
+          }
         }
       }
 
@@ -520,83 +567,141 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {getOverrideForDate(selectedDateStr) ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem", color: "var(--text-secondary)" }}>
-                    <AlertCircle size={16} style={{ color: "var(--accent)" }} />
-                    Ten dzień posiada już wyjątek:{" "}
-                    <strong>
-                      {getOverrideForDate(selectedDateStr)?.type === "unavailable_day" 
-                        ? "Dzień całkowicie zablokowany" 
-                        : `Wolny blok w godzinach ${getOverrideForDate(selectedDateStr)?.blocks?.[0]?.start} - ${getOverrideForDate(selectedDateStr)?.blocks?.[0]?.end}`
-                      }
-                    </strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div>
+                  <label style={{ fontSize: "0.85rem" }}>Typ wyjątku</label>
+                  <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500, cursor: "pointer" }}>
+                      <input 
+                        type="radio" 
+                        name="overrideType" 
+                        checked={currentOverrideType === "unavailable_day"}
+                        onChange={() => setCurrentOverrideType("unavailable_day")}
+                        style={{ width: "16px", height: "16px" }}
+                      />
+                      Cały dzień zamknięty/urlop
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500, cursor: "pointer" }}>
+                      <input 
+                        type="radio" 
+                        name="overrideType" 
+                        checked={currentOverrideType === "add_block"}
+                        onChange={() => setCurrentOverrideType("add_block")}
+                        style={{ width: "16px", height: "16px" }}
+                      />
+                      Dodaj wolne godziny (wielokrotne sloty)
+                    </label>
                   </div>
-                  <button 
-                    onClick={() => handleDeleteOverride(selectedDateStr)} 
-                    className="btn btn-danger"
-                    style={{ padding: "8px 16px", alignSelf: "flex-start", fontSize: "0.85rem" }}
-                  >
-                    <Trash2 size={14} />
-                    Usuń wyjątek
-                  </button>
                 </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+                {currentOverrideType === "add_block" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    {/* Lista aktualnych bloków godzin */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+                        Dodane bloki godzin na ten dzień:
+                      </span>
+                      {tempBlocks.length === 0 ? (
+                        <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                          Brak bloków. Dodaj zakres godzin poniżej.
+                        </span>
+                      ) : (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                          {tempBlocks.map((block, idx) => (
+                            <div 
+                              key={idx} 
+                              className="glass" 
+                              style={{ 
+                                display: "flex", 
+                                alignItems: "center", 
+                                gap: "8px", 
+                                padding: "6px 12px", 
+                                borderRadius: "var(--radius-sm)",
+                                background: "var(--bg-secondary)",
+                                border: "1px solid var(--accent)",
+                                fontSize: "0.85rem",
+                                fontWeight: 600
+                              }}
+                            >
+                              <span>{block.start} - {block.end}</span>
+                              <button 
+                                type="button"
+                                onClick={() => handleRemoveTempBlock(idx)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", padding: 0, display: "flex", alignItems: "center" }}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dodawanie nowego bloku */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", borderTop: "1px dashed var(--card-border)", paddingTop: "14px", marginTop: "4px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input 
+                          type="time" 
+                          value={newBlockStart} 
+                          onChange={(e) => setNewBlockStart(e.target.value)}
+                          style={{ padding: "6px 10px", fontSize: "0.85rem", width: "90px" }}
+                        />
+                        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>do</span>
+                        <input 
+                          type="time" 
+                          value={newBlockEnd} 
+                          onChange={(e) => setNewBlockEnd(e.target.value)}
+                          style={{ padding: "6px 10px", fontSize: "0.85rem", width: "90px" }}
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={handleAddTempBlock}
+                        className="btn btn-secondary"
+                        style={{ padding: "8px 14px", fontSize: "0.82rem" }}
+                      >
+                        + Dodaj blok
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Stopka formularza wyjątku (Zapisz / Usuń) */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px", borderTop: "1px solid var(--card-border)", paddingTop: "16px" }}>
                   <div>
-                    <label style={{ fontSize: "0.85rem" }}>Typ wyjątku</label>
-                    <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500, cursor: "pointer" }}>
-                        <input 
-                          type="radio" 
-                          name="overrideType" 
-                          checked={currentOverrideType === "unavailable_day"}
-                          onChange={() => setCurrentOverrideType("unavailable_day")}
-                          style={{ width: "16px", height: "16px" }}
-                        />
-                        Cały dzień zamknięty/urlop
-                      </label>
-                      <label style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500, cursor: "pointer" }}>
-                        <input 
-                          type="radio" 
-                          name="overrideType" 
-                          checked={currentOverrideType === "add_block"}
-                          onChange={() => setCurrentOverrideType("add_block")}
-                          style={{ width: "16px", height: "16px" }}
-                        />
-                        Dodaj niestandardowy blok godzin
-                      </label>
-                    </div>
+                    {getOverrideForDate(selectedDateStr) && (
+                      <button 
+                        onClick={() => {
+                          handleDeleteOverride(selectedDateStr);
+                          setSelectedDateStr("");
+                        }} 
+                        className="btn btn-danger"
+                        style={{ padding: "10px 16px", fontSize: "0.85rem" }}
+                      >
+                        <Trash2 size={14} />
+                        Usuń całkowicie wyjątek
+                      </button>
+                    )}
                   </div>
-
-                  {currentOverrideType === "add_block" && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <input 
-                        type="time" 
-                        value={newBlockStart} 
-                        onChange={(e) => setNewBlockStart(e.target.value)}
-                        style={{ padding: "6px 10px", fontSize: "0.85rem", width: "90px" }}
-                      />
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>do</span>
-                      <input 
-                        type="time" 
-                        value={newBlockEnd} 
-                        onChange={(e) => setNewBlockEnd(e.target.value)}
-                        style={{ padding: "6px 10px", fontSize: "0.85rem", width: "90px" }}
-                      />
-                    </div>
-                  )}
-
-                  <button 
-                    onClick={handleSaveOverride} 
-                    className="btn btn-primary"
-                    style={{ fontSize: "0.85rem", padding: "10px 20px", alignSelf: "flex-end" }}
-                    disabled={overrideSaving}
-                  >
-                    Zapisz wyjątek
-                  </button>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button 
+                      onClick={() => setSelectedDateStr("")} 
+                      className="btn btn-secondary"
+                      style={{ padding: "10px 16px", fontSize: "0.85rem" }}
+                    >
+                      Anuluj
+                    </button>
+                    <button 
+                      onClick={handleSaveOverride} 
+                      className="btn btn-primary"
+                      style={{ fontSize: "0.85rem", padding: "10px 20px" }}
+                      disabled={overrideSaving}
+                    >
+                      Zapisz wyjątek
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </section>
