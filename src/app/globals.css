@@ -1,49 +1,299 @@
+/* System zmiennych (Theme Tokens) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Kolory - Jasny Motyw */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  
+  --accent-hue: 250;
+  --accent: hsl(var(--accent-hue), 70%, 55%);
+  --accent-hover: hsl(var(--accent-hue), 70%, 45%);
+  --accent-light: hsl(var(--accent-hue), 80%, 96%);
+  --accent-glow: hsla(var(--accent-hue), 70%, 55%, 0.15);
+  
+  --success: #10b981;
+  --success-light: #ecfdf5;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --danger-light: #fef2f2;
+  
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(226, 232, 240, 0.8);
+  --backdrop-blur: 16px;
+  
+  /* Cienie */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+  
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  
+  /* Animacje */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="dark"] {
+  /* Kolory - Ciemny Motyw */
+  --bg-primary: #0b0f19;
+  --bg-secondary: #111827;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --accent-light: hsl(var(--accent-hue), 40%, 15%);
+  --accent-glow: hsla(var(--accent-hue), 70%, 55%, 0.25);
+  
+  --card-bg: rgba(17, 24, 39, 0.65);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --success-light: rgba(16, 185, 129, 0.1);
+  --danger-light: rgba(239, 68, 68, 0.15);
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
 }
 
-html {
-  height: 100%;
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
+/* Reset i podstawowe style */
 * {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dostosowanie paska przewijania (scrollbary) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Linki */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* Przyciski */
+button, .btn {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-normal);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--text-primary);
+  backdrop-filter: blur(var(--backdrop-blur));
+}
+
+.btn-secondary:hover {
+  background: var(--bg-primary);
+  border-color: var(--text-muted);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* Pola tekstowe i formularze */
+input, select, textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+
+/* Efekt szkła (Glassmorphism) */
+.glass {
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* Układy siatek i kontenerów */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+}
+
+/* Dekoracje tła - Nowoczesny wygląd */
+.bg-decorations {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.bg-blob {
+  position: absolute;
+  width: 40vw;
+  height: 40vw;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.12;
+  mix-blend-mode: multiply;
+  animation: blob-float 20s infinite alternate;
+}
+
+[data-theme="dark"] .bg-blob {
+  opacity: 0.08;
+}
+
+.bg-blob-1 {
+  background: var(--accent);
+  top: -10%;
+  right: -5%;
+}
+
+.bg-blob-2 {
+  background: #10b981;
+  bottom: -10%;
+  left: -5%;
+  animation-delay: 5s;
+}
+
+@keyframes blob-float {
+  0% {
+    transform: translate(0, 0) scale(1);
   }
+  50% {
+    transform: translate(2% , 5%) scale(1.1);
+  }
+  100% {
+    transform: translate(-3%, -2%) scale(0.9);
+  }
+}
+
+/* Wzór zakreskowania dla zajętych slotów */
+.hatched-pattern {
+  background-image: linear-gradient(
+    45deg,
+    var(--card-border) 25%,
+    transparent 25%,
+    transparent 50%,
+    var(--card-border) 50%,
+    var(--card-border) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 16px 16px;
+  background-color: var(--bg-primary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.65;
 }
