@@ -8,16 +8,43 @@ const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
 function formatPrivateKey(key: string | undefined): string | undefined {
   if (!key) return undefined;
+  
   let formatted = key.trim();
-  // Usuń ewentualne cudzysłowy z początku i końca (częsty przypadek przy kopiowaniu klucza)
+  
+  // Usuń cudzysłowy (częsty błąd przy kopiowaniu z JSON)
   if (formatted.startsWith('"') && formatted.endsWith('"')) {
     formatted = formatted.substring(1, formatted.length - 1);
   }
   if (formatted.startsWith("'") && formatted.endsWith("'")) {
     formatted = formatted.substring(1, formatted.length - 1);
   }
-  // Zamień znaki \n na prawdziwe nowe linie
-  return formatted.replace(/\\n/g, "\n");
+  
+  // Zamień tekstowe \n na prawdziwe znaki nowej linii
+  formatted = formatted.replace(/\\n/g, "\n");
+  
+  const header = "-----BEGIN PRIVATE KEY-----";
+  const footer = "-----END PRIVATE KEY-----";
+  
+  // Jeśli klucz zawiera nagłówek i stopkę, rekonstruujemy go do idealnego formatu PEM
+  // (rozwiązuje to problemy ze spłaszczeniem klucza do jednej linii lub niepoprawnymi spacjami na Vercelu)
+  if (formatted.includes(header) && formatted.includes(footer)) {
+    // Wyciągamy samą zawartość base64 klucza (bez nagłówka, stopki i jakichkolwiek białych znaków)
+    const base64Content = formatted
+      .replace(header, "")
+      .replace(footer, "")
+      .replace(/\s+/g, ""); // usuwa spacje, taby, nowe linie
+      
+    // Dzielimy zawartość base64 na standardowe linie o długości 64 znaków
+    const chunks = [];
+    for (let i = 0; i < base64Content.length; i += 64) {
+      chunks.push(base64Content.slice(i, i + 64));
+    }
+    
+    // Zwracamy idealnie sformatowany klucz PEM PKCS#8
+    return `${header}\n${chunks.join("\n")}\n${footer}\n`;
+  }
+  
+  return formatted;
 }
 
 const hasAdminCredentials = !!projectId && !!clientEmail && !!privateKey;
