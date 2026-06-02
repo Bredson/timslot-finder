@@ -2,6 +2,25 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+function cleanEnvValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  let val = value.trim();
+  
+  while (
+    val.startsWith('"') || val.startsWith("'") || 
+    val.endsWith('"') || val.endsWith("'") || val.endsWith(',')
+  ) {
+    if (val.startsWith('"') || val.startsWith("'")) {
+      val = val.substring(1);
+    }
+    if (val.endsWith('"') || val.endsWith("'") || val.endsWith(',')) {
+      val = val.substring(0, val.length - 1);
+    }
+    val = val.trim();
+  }
+  return val;
+}
+
 const isConfigured = typeof window !== "undefined"
   ? !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
   : !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -10,12 +29,12 @@ const isConfigured = typeof window !== "undefined"
 // używamy atrap danych, aby Firebase SDK nie rzuciło wyjątku 'auth/invalid-api-key' i nie zepsuło buildu.
 const firebaseConfig = isConfigured
   ? {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      apiKey: cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY) || "",
+      authDomain: cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) || "",
+      projectId: cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) || "",
+      storageBucket: cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) || "",
+      messagingSenderId: cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) || "",
+      appId: cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID) || "",
     }
   : {
       apiKey: "dummy-api-key-for-build-purposes",
