@@ -6,6 +6,20 @@ const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIR
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
+function formatPrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  let formatted = key.trim();
+  // Usuń ewentualne cudzysłowy z początku i końca (częsty przypadek przy kopiowaniu klucza)
+  if (formatted.startsWith('"') && formatted.endsWith('"')) {
+    formatted = formatted.substring(1, formatted.length - 1);
+  }
+  if (formatted.startsWith("'") && formatted.endsWith("'")) {
+    formatted = formatted.substring(1, formatted.length - 1);
+  }
+  // Zamień znaki \n na prawdziwe nowe linie
+  return formatted.replace(/\\n/g, "\n");
+}
+
 const hasAdminCredentials = !!projectId && !!clientEmail && !!privateKey;
 
 let app;
@@ -15,8 +29,7 @@ if (getApps().length === 0) {
       credential: cert({
         projectId,
         clientEmail,
-        // Zastępujemy znaki nowej linii, które mogą być w pliku .env
-        privateKey: privateKey!.replace(/\\n/g, "\n"),
+        privateKey: formatPrivateKey(privateKey),
       }),
     });
   } else {
