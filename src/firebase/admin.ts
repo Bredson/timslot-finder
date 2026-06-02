@@ -25,13 +25,38 @@ const hasAdminCredentials = !!projectId && !!clientEmail && !!privateKey;
 let app;
 if (getApps().length === 0) {
   if (hasAdminCredentials) {
-    app = initializeApp({
-      credential: cert({
+    try {
+      const formattedKey = formatPrivateKey(privateKey);
+      
+      // Diagnostyka bezpieczeństwa (widoczna w logach builda Vercel)
+      console.log("Firebase Admin Init Diagnostics:", {
         projectId,
         clientEmail,
-        privateKey: formatPrivateKey(privateKey),
-      }),
-    });
+        hasKey: !!privateKey,
+        keyLength: privateKey ? privateKey.length : 0,
+        formattedKeyLength: formattedKey ? formattedKey.length : 0,
+        startsWithHeader: formattedKey ? formattedKey.startsWith("-----BEGIN PRIVATE KEY-----") : false,
+        endsWithFooter: formattedKey ? (formattedKey.endsWith("-----END PRIVATE KEY-----") || formattedKey.endsWith("-----END PRIVATE KEY-----\n") || formattedKey.endsWith("-----END PRIVATE KEY-----\r\n")) : false,
+      });
+
+      app = initializeApp({
+        credential: cert({
+          projectId,
+          clientEmail,
+          privateKey: formattedKey,
+        }),
+      });
+    } catch (err: any) {
+      console.error("CRITICAL ERROR: Failed to initialize Firebase Admin SDK!");
+      console.error("Error details:", err.message || err);
+      
+      if (privateKey) {
+        const start = privateKey.substring(0, 30);
+        const end = privateKey.substring(Math.max(0, privateKey.length - 30));
+        console.error(`Raw Private Key snippet: "${start}...${end}"`);
+      }
+      throw err;
+    }
   } else {
     // Fallback dla lokalnego developmentu (np. jeśli używamy Firebase Emulator lub lokalnej konfiguracji gcloud)
     app = initializeApp({
