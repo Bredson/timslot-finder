@@ -20,18 +20,36 @@ export async function POST(request: Request) {
       );
     }
 
+    const parseTimeToMinutes = (t: string) => {
+      const parts = t.split(":");
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    };
+
+    const newStartMin = parseTimeToMinutes(startTime);
+    const newEndMin = parseTimeToMinutes(endTime);
+
     // 1. Sprawdź, czy slot jest już zajęty (unikanie podwójnej rezerwacji)
     const bookingsRef = adminDb.collection("bookings");
     const existingBookingsQuery = await bookingsRef
       .where("calendarOwnerId", "==", calendarOwnerId)
       .where("date", "==", date)
-      .where("startTime", "==", startTime)
       .where("status", "in", ["pending", "confirmed"])
       .get();
 
-    if (!existingBookingsQuery.empty) {
+    let hasOverlap = false;
+    existingBookingsQuery.forEach((doc) => {
+      const b = doc.data();
+      const bStart = parseTimeToMinutes(b.startTime);
+      const bEnd = parseTimeToMinutes(b.endTime);
+      // Warunek nachodzenia przedziałów: start1 < end2 && end1 > start2
+      if (newStartMin < bEnd && newEndMin > bStart) {
+        hasOverlap = true;
+      }
+    });
+
+    if (hasOverlap) {
       return NextResponse.json(
-        { error: "Ten termin jest już zarezerwowany." },
+        { error: "Wybrany przedział czasowy (lub jego część) nakłada się na istniejącą rezerwację." },
         { status: 409 }
       );
     }

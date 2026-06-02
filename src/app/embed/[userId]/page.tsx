@@ -67,7 +67,7 @@ export default function EmbedBookingPage() {
   const [selectedDateStr, setSelectedDateStr] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [slots, setSlots] = useState<TimeSlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([]);
   const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
   const [overrides, setOverrides] = useState<Override[]>([]);
 
@@ -205,17 +205,24 @@ export default function EmbedBookingPage() {
           const slotStartStr = formatMinutesToTime(curr);
           const slotEndStr = formatMinutesToTime(curr + duration);
 
-          // Walidacja wyprzedzenia (w odniesieniu do daty/czasu slotu)
+          // Walidacja wyprzedzenia
           const slotDateObj = new Date(year, month, day);
           const slotStartParts = slotStartStr.split(":");
           slotDateObj.setHours(parseInt(slotStartParts[0]), parseInt(slotStartParts[1]), 0, 0);
 
           const isPastThreshold = slotDateObj.getTime() < thresholdTime;
 
-          // Walidacja czy slot jest już zarezerwowany
-          const isBooked = existingBookings.some(
-            b => b.date === selectedDateStr && b.startTime === slotStartStr
-          );
+          const slotStartMin = curr;
+          const slotEndMin = curr + duration;
+
+          // Walidacja czy slot nachodzi na jakąkolwiek rezerwację (obsługa różnej długości rezerwacji)
+          const isBooked = existingBookings.some((b) => {
+            if (b.date !== selectedDateStr) return false;
+            const bStart = parseTimeToMinutes(b.startTime);
+            const bEnd = parseTimeToMinutes(b.endTime);
+            // Warunek nachodzenia przedziałów: start1 < end2 && end1 > start2
+            return slotStartMin < bEnd && slotEndMin > bStart;
+          });
 
           generatedSlots.push({
             startTime: slotStartStr,
@@ -230,7 +237,7 @@ export default function EmbedBookingPage() {
     };
 
     generateSlots();
-    setSelectedSlot(null);
+    setSelectedSlots([]);
   }, [selectedDateStr, owner, existingBookings, overrides]);
 
   const getDaysInMonth = (date: Date) => {
@@ -317,12 +324,64 @@ export default function EmbedBookingPage() {
     return cells;
   };
 
+  const handleSlotClick = (clickedSlot: TimeSlot) => {
+    if (selectedSlots.length === 0) {
+      setSelectedSlots([clickedSlot]);
+      return;
+    }
+
+    if (selectedSlots.length === 1) {
+      const first = selectedSlots[0];
+      if (clickedSlot.startTime === first.startTime) {
+        setSelectedSlots([]); // Odznaczamy
+        return;
+      }
+
+      // Znajdź indeksy pierwszego i drugiego klikniętego slotu w pełnej tablicy
+      const idx1 = slots.findIndex(s => s.startTime === first.startTime);
+      const idx2 = slots.findIndex(s => s.startTime === clickedSlot.startTime);
+
+      const startIdx = Math.min(idx1, idx2);
+      const endIdx = Math.max(idx1, idx2);
+
+      const slice = slots.slice(startIdx, endIdx + 1);
+
+      // Sprawdzamy czy w wybranym zakresie nie ma już zarezerwowanych slotów
+      const hasBooked = slice.some(s => s.isBooked);
+
+      // Sprawdzamy ciągłość czasu (czy nie zaznaczono slotów z dwóch różnych bloków dziennych)
+      let isContinuous = true;
+      for (let i = 0; i < slice.length - 1; i++) {
+        if (slice[i].endTime !== slice[i + 1].startTime) {
+          isContinuous = false;
+          break;
+        }
+      }
+
+      if (hasBooked || !isContinuous) {
+        // Jeśli zakres jest niepoprawny (np. zawiera zajęte sloty lub ma dziury),
+        // zaznaczamy po prostu nowo kliknięty slot jako pojedynczy
+        setSelectedSlots([clickedSlot]);
+      } else {
+        setSelectedSlots(slice);
+      }
+      return;
+    }
+
+    // Jeśli było zaznaczonych więcej niż 1, kliknięcie resetuje do pojedynczego zaznaczenia
+    setSelectedSlots([clickedSlot]);
+  };
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDateStr || !selectedSlot || !owner) return;
+    if (!selectedDateStr || selectedSlots.length === 0 || !owner) return;
 
     setBookingLoading(true);
     setBookingError("");
+
+    // Wyznaczamy pełen zakres godzinowy (od początku pierwszego do końca ostatniego zaznaczonego slotu)
+    const startTime = selectedSlots[0].startTime;
+    const endTime = selectedSlots[selectedSlots.length - 1].endTime;
 
     try {
       const clientData: any = {
@@ -348,8 +407,8 @@ export default function EmbedBookingPage() {
         body: JSON.stringify({
           calendarOwnerId: userId,
           date: selectedDateStr,
-          startTime: selectedSlot.startTime,
-          endTime: selectedSlot.endTime,
+          startTime,
+          endTime,
           clientData
         })
       });
@@ -399,13 +458,13 @@ export default function EmbedBookingPage() {
           </p>
           <div style={{ borderTop: "1px solid var(--card-border)", paddingTop: "20px", marginTop: "10px", fontSize: "0.95rem", textAlign: "left", display: "flex", flexDirection: "column", gap: "8px" }}>
             <div>📅 Data: <strong>{selectedDateStr}</strong></div>
-            <div>⏰ Godzina: <strong>{selectedSlot?.startTime} - {selectedSlot?.endTime}</strong></div>
+            <div>⏰ Godzina: <strong>{selectedSlots[0]?.startTime} - {selectedSlots[selectedSlots.length - 1]?.endTime}</strong></div>
             <div>👤 Dane: <strong>{name}</strong> ({email})</div>
           </div>
           <button 
             onClick={() => {
               setBookingSuccess(false);
-              setSelectedSlot(null);
+              setSelectedSlots([]);
               setName("");
               setEmail("");
               setPhone("");
@@ -476,7 +535,7 @@ export default function EmbedBookingPage() {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "10px" }}>
               {slots.map((slot, idx) => {
-                const isSelected = selectedSlot?.startTime === slot.startTime;
+                const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
                 
                 // Sprawdzamy czy slot jest wyłączony z powodu wyprzedzenia lub rezerwacji
                 const isUnavailable = slot.isPastThreshold;
@@ -513,7 +572,7 @@ export default function EmbedBookingPage() {
                 return (
                   <button
                     key={`slot-${idx}`}
-                    onClick={() => setSelectedSlot(slot)}
+                    onClick={() => handleSlotClick(slot)}
                     style={{
                       padding: "10px 8px",
                       borderRadius: "var(--radius-sm)",
@@ -537,11 +596,11 @@ export default function EmbedBookingPage() {
       </div>
 
       {/* Formularz Rezerwacji Spotkania (widoczny po zaznaczeniu slotu) */}
-      {selectedSlot && (
+      {selectedSlots.length > 0 && (
         <div className="glass" style={{ padding: "30px", marginTop: "12px", border: "1px solid var(--accent)" }}>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
             <CalendarDays size={18} style={{ color: "var(--accent)" }} />
-            Potwierdzenie rezerwacji: {selectedDateStr} o godz. {selectedSlot.startTime} - {selectedSlot.endTime}
+            Potwierdzenie rezerwacji: {selectedDateStr} o godz. {selectedSlots[0].startTime} - {selectedSlots[selectedSlots.length - 1].endTime}
           </h3>
 
           {bookingError && (
